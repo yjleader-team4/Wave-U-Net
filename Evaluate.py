@@ -42,7 +42,7 @@ def predict(track):
             'accompaniment': np.zeros(track.audio.shape)
         }'''
     # Load model hyper-parameters and model checkpoint path
-    with open("prediction_params.pkl", "r") as file:
+    with open("prediction_params.pkl", "rb") as file:
         [model_config, load_model] = pickle.load(file)
 
     # Determine input and output shapes, if we use U-net as separator
@@ -158,7 +158,7 @@ def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_ou
 
     # Pad mixture across time at beginning and end so that neural network can make prediction at the beginning and end of signal
     pad_time_frames = (input_time_frames - output_time_frames) / 2
-    mix_audio_padded = np.pad(mix_audio, [(pad_time_frames, pad_time_frames), (0,0)], mode="constant", constant_values=0.0)
+    mix_audio_padded = np.pad(mix_audio, [(int(pad_time_frames), int(pad_time_frames)), (0,0)], mode="constant", constant_values=0.0)
 
     # Iterate over mixture magnitudes, fetch network rpediction
     for source_pos in range(0, source_time_frames, output_time_frames):

@@ -4,12 +4,12 @@ import numpy as np
 import os
 
 import Datasets
-from Input import Input as Input
+from Input import Input
 from Input import batchgenerators as batchgen
 import Utils
 import Models.UnetSpectrogramSeparator
 import Models.UnetAudioSeparator
-import cPickle as pickle
+import pickle
 import Test
 import Evaluate
 
@@ -21,14 +21,14 @@ ex = Experiment('Waveunet')
 @ex.config
 def cfg():
     # Base configuration
-    model_config = {"musdb_path" : "/home/daniel/Datasets/MUSDB18", # SET MUSDB PATH HERE, AND SET CCMIXTER PATH IN CCMixter.xml
-                    "estimates_path" : "/mnt/windaten/Source_Estimates", # SET THIS PATH TO WHERE YOU WANT SOURCE ESTIMATES PRODUCED BY THE TRAINED MODEL TO BE SAVED. Folder itself must exist!
+    model_config = {"musdb_path" : "/home/ncp/workspace/data_download/musdb18", # SET MUSDB PATH HERE, AND SET CCMIXTER PATH IN CCMixter.xml
+                    "estimates_path" : "../model_1", # SET THIS PATH TO WHERE YOU WANT SOURCE ESTIMATES PRODUCED BY THE TRAINED MODEL TO BE SAVED. Folder itself must exist!
 
                     "model_base_dir" : "checkpoints", # Base folder for model checkpoints
                     "log_dir" : "logs", # Base folder for logs files
                     "batch_size" : 16, # Batch size
                     "init_sup_sep_lr" : 1e-4, # Supervised separator learning rate
-                    "epoch_it" : 2000, # Number of supervised separator steps per epoch
+                    "epoch_it" : 10, # Number of supervised separator steps per epoch
                     "num_disc": 5,  # Number of discriminator iterations per separator update
                     'cache_size' : 16, # Number of audio excerpts that are cached to build batches from
                     'num_workers' : 6, # Number of processes reading audio and filling up the cache
@@ -264,6 +264,7 @@ def train(model_config, experiment_id, sup_dataset, unsup_dataset=None, load_mod
     _global_step = sess.run(global_step)
     _init_step = _global_step
     it = 0
+
     while run:
         # TRAIN SEPARATOR
         sup_batch = sup_batch_gen.get_batch()
@@ -274,11 +275,11 @@ def train(model_config, experiment_id, sup_dataset, unsup_dataset=None, load_mod
 
         # Increment step counter, check if maximum iterations per epoch is achieved and stop in that case
         _global_step = sess.run(increment_global_step)
-
         if _global_step - _init_step > model_config["epoch_it"]:
             run = False
             print("Finished training phase, stopping batch generators")
             sup_batch_gen.stop_workers()
+
 
     # Epoch finished - Save model
     print("Finished epoch!")
@@ -298,7 +299,7 @@ def optimise(model_config, experiment_id, dataset):
     best_loss = 10000
     model_path = None
     best_model_path = None
-    for i in range(2):
+    for i in range(2):  
         worse_epochs = 0
         if i==1:
             print("Finished first round of training, now entering fine-tuning stage")
@@ -333,7 +334,7 @@ def dsd_100_experiment(model_config):
 
     # Set up data input
     if os.path.exists('dataset.pkl'):
-        with open('dataset.pkl', 'r') as file:
+        with open('dataset.pkl', 'rb') as file:
             dataset = pickle.load(file)
         print("Loaded dataset from pickle!")
     else:
@@ -341,7 +342,8 @@ def dsd_100_experiment(model_config):
         ccm = Datasets.getCCMixter("CCMixter.xml")
 
         # Pick 25 random songs for validation from MUSDB train set (this is always the same selection each time since we fix the random seed!)
-        val_idx = np.random.choice(len(dsd_train), size=25, replace=False)
+        
+        val_idx = np.random.choice(len(dsd_train), size=5, replace=False)
         train_idx = [i for i in range(len(dsd_train)) if i not in val_idx]
         print("Validation with MUSDB training songs no. " + str(train_idx))
 
@@ -358,16 +360,11 @@ def dsd_100_experiment(model_config):
 
     # Setup dataset depending on task. Dataset contains sources in order: (mix, acc, bass, drums, other, vocal)
     if model_config["task"] == "voice":
-        for i in range(75):
+        for i in range(25):
             dataset["train_sup"][i] = (dataset["train_sup"][i][0], dataset["train_sup"][i][1], dataset["train_sup"][i][5])
         for subset in ["valid", "test"]:
             for i in range(len(dataset[subset])):
                 dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][1], dataset[subset][i][5])
-    else: # Multitask - Remove CCMixter from training, and acc source
-        dataset["train_sup"] = dataset["train_sup"][:75]
-        for subset in ["train_sup", "valid", "test"]:
-            for i in range(len(dataset[subset])):
-                dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][2], dataset[subset][i][3], dataset[subset][i][4], dataset[subset][i][5])
 
     # Optimize in a +supervised fashion until validation loss worsens
     sup_model_path, sup_loss = optimise(dataset=dataset)

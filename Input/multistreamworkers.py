@@ -1,10 +1,12 @@
 import numpy as np
-import Input
+import Input.Input as Input   # import Input
 from Sample import Sample
 from soundfile import SoundFile
 import librosa
 import pickle as pkl
 import os
+
+
 
 class MultistreamWorker_GetSpectrogram:
     @staticmethod

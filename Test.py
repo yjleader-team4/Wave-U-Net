@@ -95,7 +95,7 @@ def test(model_config, audio_list, model_folder, load_model):
                 total_loss += np.sum(np.square(source_gt - source_pred))
                 total_samples += np.prod(source_gt.shape)  # Number of entries is product of number of sources and number of outputs per source
 
-        print("MSE for track " + sample[0].path + ": " + str(total_loss / float(total_samples)))
+        #print("MSE for track " + sample[0].path + ": " + str(total_loss / float(total_samples)))
     mean_mse_loss = total_loss / float(total_samples)
 
     summary = tf.Summary(value=[tf.Summary.Value(tag="test_loss", simple_value=mean_mse_loss)])
